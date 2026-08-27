@@ -1,4 +1,5 @@
 node_modules
+dist
 coverage
 .env
 .env.*
@@ -9,4 +10,3 @@ Jenkinsfile
 *.log
 .idea
 .vscode
-README.md

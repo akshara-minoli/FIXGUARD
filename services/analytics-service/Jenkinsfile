@@ -1,0 +1,109 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+    timestamps()
+  }
+
+  environment {
+    REGISTRY = 'ghcr.io'
+    GHCR_NAMESPACE = 'akshara-minoli'
+    IMAGE_NAME = 'fixguard-analytics'
+    SERVICE_DIR = 'services/analytics-service'
+    TRIVY_IMAGE = 'aquasec/trivy:0.74.0'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_SHA = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
+          env.IMAGE_REF = "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:${GIT_SHA}"
+        }
+      }
+    }
+
+    stage('Environment Verification') {
+      steps {
+        sh 'git --version'
+        sh 'docker --version'
+        sh 'docker info --format "{{.ServerVersion}}"'
+        sh 'test -f "${SERVICE_DIR}/package-lock.json"'
+      }
+    }
+
+    stage('Dependencies, Prisma, Tests') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          reuseNode true
+          args '-u root:root'
+        }
+      }
+      steps {
+        dir("${SERVICE_DIR}") {
+          sh 'npm ci'
+          sh 'npx prisma generate'
+          sh 'npm test'
+          sh 'npm audit --audit-level=high || true'
+        }
+      }
+    }
+
+    stage('Docker Build') {
+      steps {
+        sh 'docker build --pull -t "${IMAGE_REF}" "${SERVICE_DIR}"'
+      }
+    }
+
+    stage('Image Secret Check') {
+      steps {
+        sh '''docker run --rm --entrypoint sh "${IMAGE_REF}" -c '
+          test ! -f /app/.env
+          test ! -d /app/.git
+          test ! -d /app/coverage
+        ' '''
+      }
+    }
+
+    stage('Trivy Scan') {
+      steps {
+        sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v fixguard-trivy-cache:/root/.cache/ "${TRIVY_IMAGE}" image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --ignore-unfixed "${IMAGE_REF}"'
+        sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v fixguard-trivy-cache:/root/.cache/ "${TRIVY_IMAGE}" image --scanners vuln --severity CRITICAL --exit-code 1 --ignore-unfixed "${IMAGE_REF}"'
+      }
+    }
+
+    stage('Push GHCR') {
+      when {
+        anyOf {
+          branch 'main'
+          expression { env.GIT_BRANCH == 'origin/main' }
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'ghcr-credentials', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+          sh 'echo "$GHCR_TOKEN" | docker login "${REGISTRY}" --username "$GHCR_USER" --password-stdin'
+          sh 'docker push "${IMAGE_REF}"'
+          sh 'docker tag "${IMAGE_REF}" "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:latest"'
+          sh 'docker push "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:latest"'
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Validated image: ${env.IMAGE_REF}"
+    }
+    failure {
+      echo 'Pipeline failed; no later stage or registry push was allowed to continue.'
+    }
+    always {
+      sh 'docker logout ghcr.io >/dev/null 2>&1 || true'
+      deleteDir()
+    }
+  }
+}

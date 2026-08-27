@@ -3,3 +3,8 @@
 node_modules/
 **/node_modules/
 npm-debug.log*
+coverage/
+**/coverage/
+*.log
+.idea/
+.vscode/

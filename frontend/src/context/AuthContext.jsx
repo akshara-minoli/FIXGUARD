@@ -20,6 +20,12 @@ export function AuthProvider({ children }) {
       .finally(() => setReady(true));
   }, []);
 
+  useEffect(() => {
+    const invalidate = () => setUser(null);
+    window.addEventListener("fixguard-auth-invalid", invalidate);
+    return () => window.removeEventListener("fixguard-auth-invalid", invalidate);
+  }, []);
+
   async function login(credentials) {
     const result = await authApi("/api/auth/login", {
       method: "POST",

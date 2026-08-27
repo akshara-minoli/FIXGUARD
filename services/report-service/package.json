@@ -9,7 +9,9 @@
     "start": "node src/server.js",
     "start:container": "prisma migrate deploy && node src/server.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "test": "node --test test/*.test.js",
+    "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",

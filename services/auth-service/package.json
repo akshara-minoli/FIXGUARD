@@ -8,7 +8,9 @@
     "start:container": "prisma migrate deploy && npm run seed:admin && node src/server.js",
     "seed:admin": "node prisma/seed.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "test": "node --test test/*.test.js",
+    "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",

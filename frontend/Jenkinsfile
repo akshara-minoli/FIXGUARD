@@ -1,0 +1,125 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+    timestamps()
+  }
+
+  parameters {
+    string(name: 'VITE_AUTH_API_URL', defaultValue: 'http://localhost:4001', description: 'Public Auth API URL embedded in the browser bundle')
+    string(name: 'VITE_REPORT_API_URL', defaultValue: 'http://localhost:4002', description: 'Public Report API URL')
+    string(name: 'VITE_LOCATION_API_URL', defaultValue: 'http://localhost:4003', description: 'Public Location API URL')
+    string(name: 'VITE_ASSIGNMENT_API_URL', defaultValue: 'http://localhost:4004', description: 'Public Assignment API URL')
+    string(name: 'VITE_NOTIFICATION_API_URL', defaultValue: 'http://localhost:4005', description: 'Public Notification API URL')
+    string(name: 'VITE_ANALYTICS_API_URL', defaultValue: 'http://localhost:4006', description: 'Public Analytics API URL')
+  }
+
+  environment {
+    REGISTRY = 'ghcr.io'
+    GHCR_NAMESPACE = 'akshara-minoli'
+    IMAGE_NAME = 'fixguard-frontend'
+    SERVICE_DIR = 'frontend'
+    TRIVY_IMAGE = 'aquasec/trivy:0.74.0'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_SHA = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
+          env.IMAGE_REF = "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:${GIT_SHA}"
+        }
+      }
+    }
+
+    stage('Environment Verification') {
+      steps {
+        sh 'git --version'
+        sh 'docker --version'
+        sh 'docker info --format "{{.ServerVersion}}"'
+        sh 'test -f "${SERVICE_DIR}/package-lock.json"'
+      }
+    }
+
+    stage('Dependencies, Tests, Build') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          reuseNode true
+          args '-u root:root'
+        }
+      }
+      steps {
+        dir("${SERVICE_DIR}") {
+          sh 'npm ci'
+          sh 'npm test'
+          sh 'npm run build'
+          sh 'npm audit --audit-level=high || true'
+        }
+      }
+    }
+
+    stage('Docker Build') {
+      steps {
+        sh '''docker build --pull \
+          --build-arg VITE_AUTH_API_URL="${VITE_AUTH_API_URL}" \
+          --build-arg VITE_REPORT_API_URL="${VITE_REPORT_API_URL}" \
+          --build-arg VITE_LOCATION_API_URL="${VITE_LOCATION_API_URL}" \
+          --build-arg VITE_ASSIGNMENT_API_URL="${VITE_ASSIGNMENT_API_URL}" \
+          --build-arg VITE_NOTIFICATION_API_URL="${VITE_NOTIFICATION_API_URL}" \
+          --build-arg VITE_ANALYTICS_API_URL="${VITE_ANALYTICS_API_URL}" \
+          -t "${IMAGE_REF}" "${SERVICE_DIR}"'''
+      }
+    }
+
+    stage('Image Secret Check') {
+      steps {
+        sh '''docker run --rm --entrypoint sh "${IMAGE_REF}" -c '
+          test ! -f /usr/share/nginx/html/.env
+          test ! -d /usr/share/nginx/html/.git
+          test ! -d /usr/share/nginx/html/node_modules
+        ' '''
+      }
+    }
+
+    stage('Trivy Scan') {
+      steps {
+        sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v fixguard-trivy-cache:/root/.cache/ "${TRIVY_IMAGE}" image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --ignore-unfixed "${IMAGE_REF}"'
+        sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v fixguard-trivy-cache:/root/.cache/ "${TRIVY_IMAGE}" image --scanners vuln --severity CRITICAL --exit-code 1 --ignore-unfixed "${IMAGE_REF}"'
+      }
+    }
+
+    stage('Push GHCR') {
+      when {
+        anyOf {
+          branch 'main'
+          expression { env.GIT_BRANCH == 'origin/main' }
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'ghcr-credentials', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+          sh 'echo "$GHCR_TOKEN" | docker login "${REGISTRY}" --username "$GHCR_USER" --password-stdin'
+          sh 'docker push "${IMAGE_REF}"'
+          sh 'docker tag "${IMAGE_REF}" "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:latest"'
+          sh 'docker push "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:latest"'
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Validated image: ${env.IMAGE_REF}"
+    }
+    failure {
+      echo 'Pipeline failed; no later stage or registry push was allowed to continue.'
+    }
+    always {
+      sh 'docker logout ghcr.io >/dev/null 2>&1 || true'
+      deleteDir()
+    }
+  }
+}

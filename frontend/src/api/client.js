@@ -18,6 +18,10 @@ export async function apiRequest(baseUrl, path, options = {}) {
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      localStorage.removeItem("fixguard_token");
+      window.dispatchEvent(new Event("fixguard-auth-invalid"));
+    }
     const error = new Error(body.message || "The request could not be completed");
     error.status = response.status;
     error.details = body.errors;
