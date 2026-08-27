@@ -1,0 +1,1 @@
+import {Router} from "express";import {create} from "../controllers/notification.controller.js";import {requireInternalKey} from "../middleware/internal-key.middleware.js";import {asyncHandler} from "../utils/async-handler.js";const router=Router();router.post("/",requireInternalKey,asyncHandler(create));export default router;

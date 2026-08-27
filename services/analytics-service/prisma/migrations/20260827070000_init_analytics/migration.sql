@@ -1,0 +1,2 @@
+CREATE TABLE "analytics_snapshots" ("id" UUID NOT NULL,"reports" JSONB,"assignments" JSONB,"categories" JSONB,"locations" JSONB,"performance" JSONB,"warnings" JSONB NOT NULL,"is_partial" BOOLEAN NOT NULL DEFAULT false,"generated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "analytics_snapshots_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "analytics_snapshots_generated_at_idx" ON "analytics_snapshots"("generated_at");

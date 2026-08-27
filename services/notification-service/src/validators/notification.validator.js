@@ -1,0 +1,3 @@
+import {z} from "zod";export const types=["REPORT_SUBMITTED","REPORT_UNDER_REVIEW","REPORT_VERIFIED","REPORT_REJECTED","REPORT_PRIORITY_CHANGED","TEAM_ASSIGNED","WORK_STARTED","WORK_COMPLETED","REPORT_RESOLVED","GENERAL"];
+export const createSchema=z.object({userId:z.uuid(),type:z.enum(types),title:z.string().trim().min(2).max(160),message:z.string().trim().min(2).max(1000),reportId:z.uuid().optional(),assignmentId:z.uuid().optional(),eventKey:z.string().trim().min(3).max(255).regex(/^[A-Za-z0-9:_-]+$/),metadata:z.record(z.string(),z.unknown()).optional()}).strict();
+export const idSchema=z.object({id:z.uuid()});export const listSchema=z.object({status:z.enum(["read","unread"]).optional()});

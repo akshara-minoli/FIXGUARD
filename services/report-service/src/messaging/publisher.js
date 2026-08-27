@@ -1,0 +1,1 @@
+import{randomUUID}from"node:crypto";import{publish}from"./rabbitmq.js";export const publishEvent=(eventType,data)=>publish(eventType,{eventId:randomUUID(),eventType,eventVersion:1,occurredAt:new Date().toISOString(),source:"report-service",data});

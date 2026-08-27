@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model AnalyticsSnapshot {
+  id          String   @id @default(uuid()) @db.Uuid
+  reports     Json?
+  assignments Json?
+  categories  Json?
+  locations   Json?
+  performance Json?
+  warnings    Json
+  isPartial   Boolean  @default(false) @map("is_partial")
+  generatedAt DateTime @default(now()) @map("generated_at") @db.Timestamptz(6)
+  @@index([generatedAt])
+  @@map("analytics_snapshots")
+}
+model ProcessedEvent {
+  eventId String @id @map("event_id") @db.Uuid
+  eventType String @map("event_type") @db.VarChar(100)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+  @@map("processed_events")
+}

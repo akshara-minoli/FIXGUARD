@@ -8,13 +8,31 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
-      - fixguard_postgres_data:/var/lib/postgresql/data
+      - fixguard_postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - fixguard_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     restart: unless-stopped
 
   auth-service:
@@ -68,6 +86,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${REPORT_DB:-fixguard_report}?schema=public
       JWT_SECRET: ${JWT_SECRET}
       LOCATION_SERVICE_URL: http://location-service:4003
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-fixguard.events}
     ports:
       - "127.0.0.1:${REPORT_PORT:-4002}:4002"
     depends_on:
@@ -113,6 +134,7 @@ services:
       PORT: 4003
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${LOCATION_DB:-fixguard_location}?schema=public
       JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
     ports:
       - "127.0.0.1:${LOCATION_PORT:-4003}:4003"
     depends_on:
@@ -158,6 +180,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       REPORT_SERVICE_URL: http://report-service:4002
       LOCATION_SERVICE_URL: http://location-service:4003
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-fixguard.events}
     ports:
       - "127.0.0.1:${ASSIGNMENT_PORT:-4004}:4004"
     depends_on:
@@ -175,6 +200,113 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  notification-db-init:
+    image: postgres:18-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      NOTIFICATION_DB: ${NOTIFICATION_DB:-fixguard_notification}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        if psql -h postgres -U "$$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$NOTIFICATION_DB'" | grep -q 1; then
+          echo "Notification database already exists"
+        else
+          createdb -h postgres -U "$$POSTGRES_USER" -O "$$POSTGRES_USER" "$$NOTIFICATION_DB"
+          echo "Notification database created"
+        fi
+    restart: "no"
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 4005
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${NOTIFICATION_DB:-fixguard_notification}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-fixguard.events}
+      RABBITMQ_QUEUE: ${NOTIFICATION_QUEUE:-notification-service.events}
+      RABBITMQ_DLQ: ${NOTIFICATION_DLQ:-notification-service.dlq}
+    ports:
+      - "127.0.0.1:${NOTIFICATION_PORT:-4005}:4005"
+    depends_on:
+      notification-db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  analytics-db-init:
+    image: postgres:18-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      ANALYTICS_DB: ${ANALYTICS_DB:-fixguard_analytics}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        if psql -h postgres -U "$$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$ANALYTICS_DB'" | grep -q 1; then
+          echo "Analytics database already exists"
+        else
+          createdb -h postgres -U "$$POSTGRES_USER" -O "$$POSTGRES_USER" "$$ANALYTICS_DB"
+          echo "Analytics database created"
+        fi
+    restart: "no"
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 4006
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${ANALYTICS_DB:-fixguard_analytics}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      REPORT_SERVICE_URL: http://report-service:4002
+      ASSIGNMENT_SERVICE_URL: http://assignment-service:4004
+      LOCATION_SERVICE_URL: http://location-service:4003
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-fixguard.events}
+      RABBITMQ_QUEUE: ${ANALYTICS_QUEUE:-analytics-service.events}
+      RABBITMQ_DLQ: ${ANALYTICS_DLQ:-analytics-service.dlq}
+    ports:
+      - "127.0.0.1:${ANALYTICS_PORT:-4006}:4006"
+    depends_on:
+      analytics-db-init:
+        condition: service_completed_successfully
+      report-service:
+        condition: service_healthy
+      assignment-service:
+        condition: service_healthy
+      location-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4006/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
 volumes:
   fixguard_postgres_data:
     name: fixguard_postgres_data
+  fixguard_rabbitmq_data:
+    name: fixguard_rabbitmq_data

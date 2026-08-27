@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum NotificationType {
+  REPORT_SUBMITTED
+  REPORT_UNDER_REVIEW
+  REPORT_VERIFIED
+  REPORT_REJECTED
+  REPORT_PRIORITY_CHANGED
+  TEAM_ASSIGNED
+  WORK_STARTED
+  WORK_COMPLETED
+  REPORT_RESOLVED
+  GENERAL
+}
+model Notification {
+  id           String           @id @default(uuid()) @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  type         NotificationType
+  title        String           @db.VarChar(160)
+  message      String           @db.VarChar(1000)
+  reportId     String?          @map("report_id") @db.Uuid
+  assignmentId String?          @map("assignment_id") @db.Uuid
+  eventKey     String           @unique @map("event_key") @db.VarChar(255)
+  metadata     Json?
+  isRead       Boolean          @default(false) @map("is_read")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt       DateTime?        @map("read_at") @db.Timestamptz(6)
+  @@index([userId, isRead, createdAt])
+  @@index([reportId])
+  @@index([assignmentId])
+  @@map("notifications")
+}
+model ProcessedEvent {
+  eventId String @id @map("event_id") @db.Uuid
+  eventType String @map("event_type") @db.VarChar(100)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+  @@map("processed_events")
+}

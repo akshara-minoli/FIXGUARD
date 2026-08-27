@@ -1,0 +1,1 @@
+import{z}from"zod";export const trendQuerySchema=z.object({range:z.enum(["7d","30d","90d"]).default("30d")}).strict();export const hotspotQuerySchema=z.object({limit:z.coerce.number().int().min(1).max(25).default(5)}).strict();

@@ -1,0 +1,1 @@
+import {Router} from "express";import {analytics} from "../controllers/analytics.controller.js";import {requireInternalKey} from "../middleware/internal-key.middleware.js";import {asyncHandler} from "../utils/async-handler.js";const router=Router();router.get("/analytics",requireInternalKey,asyncHandler(analytics));export default router;
