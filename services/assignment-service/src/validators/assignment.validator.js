@@ -1,0 +1,14 @@
+import { z } from "zod";
+export const specializations=["ROAD_MAINTENANCE","STREETLIGHT","WATER","WASTE_MANAGEMENT","DRAINAGE","TRAFFIC_SIGNAL","TREE_REMOVAL","GENERAL"];
+export const statuses=["ASSIGNED","ACCEPTED","IN_PROGRESS","COMPLETED","CANCELLED"];
+const intId=z.coerce.number().int().positive(); const uuid=z.uuid();
+const teamFields=z.object({name:z.string().trim().min(2).max(140),code:z.string().trim().min(2).max(20).regex(/^[A-Za-z0-9-]+$/).transform((v)=>v.toUpperCase()),specialization:z.enum(specializations),serviceZoneId:z.number().int().positive(),contactEmail:z.string().trim().email().max(254).nullable().optional(),contactPhone:z.string().trim().min(7).max(30).nullable().optional(),isActive:z.boolean().optional()}).strict();
+export const createTeamSchema=teamFields;
+export const updateTeamSchema=teamFields.partial().refine((value)=>Object.keys(value).length>0,"Provide at least one field");
+export const numericIdSchema=z.object({id:intId});
+export const assignmentIdSchema=z.object({id:uuid});
+export const reportIdSchema=z.object({reportId:uuid});
+export const createAssignmentSchema=z.object({reportId:uuid,teamId:z.number().int().positive(),instructions:z.string().trim().max(3000).nullable().optional()}).strict();
+export const assignmentFiltersSchema=z.object({status:z.enum(statuses).optional(),teamId:intId.optional(),reportId:uuid.optional()});
+export const statusUpdateSchema=z.object({status:z.enum(statuses)}).strict();
+export const teamFiltersSchema=z.object({serviceZoneId:intId.optional(),specialization:z.enum(specializations).optional(),isActive:z.enum(["true","false"]).transform((v)=>v==="true").optional()});

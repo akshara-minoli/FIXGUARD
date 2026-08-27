@@ -1,0 +1,2 @@
+import { Router } from "express"; import { citizenReport } from "../controllers/assignment.controller.js"; import { authenticate } from "../middleware/auth.middleware.js"; import { authorizeRoles } from "../middleware/authorize-role.middleware.js"; import { asyncHandler } from "../utils/async-handler.js";
+const router=Router();router.use(authenticate,authorizeRoles("CITIZEN"));router.get("/report/:reportId",asyncHandler(citizenReport));export default router;

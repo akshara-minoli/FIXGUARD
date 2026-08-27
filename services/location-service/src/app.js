@@ -1,0 +1,10 @@
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
+import adminRoutes from "./routes/admin.routes.js";
+import locationRoutes from "./routes/location.routes.js";
+const app = express(); app.use(helmet()); app.use(cors()); app.use(express.json({ limit: "20kb" }));
+app.get("/health", (_request, response) => response.json({ service: "location-service", status: "healthy" }));
+app.use("/api/locations", locationRoutes); app.use("/api/admin/locations", adminRoutes); app.use(notFoundHandler); app.use(errorHandler);
+export default app;

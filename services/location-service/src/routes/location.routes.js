@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { area, areas, districts, validateSelection, zone, zones } from "../controllers/location.controller.js";
+import { asyncHandler } from "../utils/async-handler.js";
+const router = Router();
+router.get("/districts", asyncHandler(districts));
+router.get("/districts/:districtId/areas", asyncHandler(areas));
+router.get("/areas/:id", asyncHandler(area));
+router.get("/service-zones", asyncHandler(zones));
+router.get("/service-zones/:id", asyncHandler(zone));
+router.get("/validate", asyncHandler(validateSelection));
+export default router;

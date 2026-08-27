@@ -1,0 +1,13 @@
+CREATE TABLE "districts" ("id" SERIAL NOT NULL, "name" VARCHAR(100) NOT NULL, "code" VARCHAR(10) NOT NULL, "is_active" BOOLEAN NOT NULL DEFAULT true, "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "districts_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "areas" ("id" SERIAL NOT NULL, "district_id" INTEGER NOT NULL, "name" VARCHAR(120) NOT NULL, "postal_code" VARCHAR(10), "latitude" DECIMAL(9,6), "longitude" DECIMAL(9,6), "is_active" BOOLEAN NOT NULL DEFAULT true, "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "areas_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "service_zones" ("id" SERIAL NOT NULL, "name" VARCHAR(140) NOT NULL, "district_id" INTEGER NOT NULL, "area_id" INTEGER, "description" TEXT, "is_active" BOOLEAN NOT NULL DEFAULT true, "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMPTZ(6) NOT NULL, CONSTRAINT "service_zones_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "districts_name_key" ON "districts"("name");
+CREATE UNIQUE INDEX "districts_code_key" ON "districts"("code");
+CREATE UNIQUE INDEX "areas_district_id_name_key" ON "areas"("district_id", "name");
+CREATE INDEX "areas_district_id_is_active_idx" ON "areas"("district_id", "is_active");
+CREATE UNIQUE INDEX "service_zones_name_key" ON "service_zones"("name");
+CREATE INDEX "service_zones_district_id_is_active_idx" ON "service_zones"("district_id", "is_active");
+CREATE INDEX "service_zones_area_id_idx" ON "service_zones"("area_id");
+ALTER TABLE "areas" ADD CONSTRAINT "areas_district_id_fkey" FOREIGN KEY ("district_id") REFERENCES "districts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "service_zones" ADD CONSTRAINT "service_zones_district_id_fkey" FOREIGN KEY ("district_id") REFERENCES "districts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "service_zones" ADD CONSTRAINT "service_zones_area_id_fkey" FOREIGN KEY ("area_id") REFERENCES "areas"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

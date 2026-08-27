@@ -1,0 +1,8 @@
+import * as reports from "../services/report.service.js";
+import { createReportSchema, reportFiltersSchema, reportIdSchema } from "../validators/report.validator.js";
+import { enrichReports, validateLocation } from "../services/location-client.service.js";
+
+export async function create(request, response) { const input = createReportSchema.parse(request.body); await validateLocation(input.districtId, input.areaId); const report = await reports.createReport(request.auth.userId, input); response.status(201).json({ success: true, message: "Report submitted successfully", report }); }
+export async function mine(request, response) { const filters = reportFiltersSchema.parse(request.query); response.json({ success: true, reports: await enrichReports(await reports.getCitizenReports(request.auth.userId, filters)) }); }
+export async function mineSummary(request, response) { const result = await reports.getCitizenSummary(request.auth.userId); result.recent = await enrichReports(result.recent); response.json({ success: true, ...result }); }
+export async function detail(request, response) { const { id } = reportIdSchema.parse(request.params); const [report] = await enrichReports([await reports.getCitizenReport(request.auth.userId, id)]); response.json({ success: true, report }); }

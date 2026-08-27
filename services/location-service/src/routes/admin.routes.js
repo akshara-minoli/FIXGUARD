@@ -1,0 +1,13 @@
+import { Router } from "express";
+import * as admin from "../controllers/admin.controller.js";
+import { authenticate } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize-role.middleware.js";
+import { asyncHandler } from "../utils/async-handler.js";
+const router = Router(); router.use(authenticate, authorizeRoles("ADMIN"));
+router.route("/districts").get(asyncHandler(admin.listDistricts)).post(asyncHandler(admin.createDistrict));
+router.patch("/districts/:id", asyncHandler(admin.updateDistrict));
+router.route("/areas").get(asyncHandler(admin.listAreas)).post(asyncHandler(admin.createArea));
+router.patch("/areas/:id", asyncHandler(admin.updateArea));
+router.route("/service-zones").get(asyncHandler(admin.listZones)).post(asyncHandler(admin.createZone));
+router.patch("/service-zones/:id", asyncHandler(admin.updateZone));
+export default router;

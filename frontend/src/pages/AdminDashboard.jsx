@@ -1,0 +1,6 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { reportApi } from "../api/client.js";
+
+export default function AdminDashboard() { const [summary, setSummary] = useState({ total: 0, submitted: 0, underReview: 0, inProgress: 0, resolved: 0 }); const [error, setError] = useState(""); useEffect(() => { reportApi("/api/admin/reports/summary").then(({ summary }) => setSummary(summary)).catch(() => setError("Report operations are temporarily unavailable.")); }, []); return <section className="page"><div className="page-heading"><div><p className="eyebrow">Operations overview</p><h1>City issue command center</h1><p>Review incoming reports and move verified issues toward resolution.</p></div><Link className="primary-button" to="/admin/reports">Review reports</Link></div>{error && <p className="notice">{error}</p>}<div className="stat-grid"><AdminStat label="All reports" value={summary.total} /><AdminStat label="Submitted" value={summary.submitted} /><AdminStat label="Under review" value={summary.underReview} /><AdminStat label="In progress" value={summary.inProgress} /><AdminStat label="Resolved" value={summary.resolved} /></div></section>; }
+function AdminStat({ label, value }) { return <article className="stat-card"><span>{label}</span><strong>{value}</strong></article>; }

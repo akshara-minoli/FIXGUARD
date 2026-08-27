@@ -1,0 +1,2 @@
+import { Router } from "express"; import * as controller from "../controllers/team.controller.js"; import { authenticate } from "../middleware/auth.middleware.js"; import { authorizeRoles } from "../middleware/authorize-role.middleware.js"; import { asyncHandler } from "../utils/async-handler.js";
+const router=Router();router.use(authenticate,authorizeRoles("ADMIN"));router.route("/").get(asyncHandler(controller.list)).post(asyncHandler(controller.create));router.route("/:id").get(asyncHandler(controller.detail)).patch(asyncHandler(controller.update));export default router;

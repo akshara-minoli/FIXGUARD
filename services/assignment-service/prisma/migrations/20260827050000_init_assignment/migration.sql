@@ -1,0 +1,11 @@
+CREATE TYPE "TeamSpecialization" AS ENUM ('ROAD_MAINTENANCE','STREETLIGHT','WATER','WASTE_MANAGEMENT','DRAINAGE','TRAFFIC_SIGNAL','TREE_REMOVAL','GENERAL');
+CREATE TYPE "AssignmentStatus" AS ENUM ('ASSIGNED','ACCEPTED','IN_PROGRESS','COMPLETED','CANCELLED');
+CREATE TABLE "maintenance_teams" ("id" SERIAL NOT NULL,"name" VARCHAR(140) NOT NULL,"code" VARCHAR(20) NOT NULL,"specialization" "TeamSpecialization" NOT NULL,"service_zone_id" INTEGER NOT NULL,"contact_email" VARCHAR(254),"contact_phone" VARCHAR(30),"is_active" BOOLEAN NOT NULL DEFAULT true,"created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updated_at" TIMESTAMPTZ(6) NOT NULL,CONSTRAINT "maintenance_teams_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "assignments" ("id" UUID NOT NULL,"report_id" UUID NOT NULL,"team_id" INTEGER NOT NULL,"assigned_by" UUID NOT NULL,"status" "AssignmentStatus" NOT NULL DEFAULT 'ASSIGNED',"instructions" TEXT,"assigned_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,"started_at" TIMESTAMPTZ(6),"completed_at" TIMESTAMPTZ(6),"created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updated_at" TIMESTAMPTZ(6) NOT NULL,CONSTRAINT "assignments_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "maintenance_teams_name_key" ON "maintenance_teams"("name");
+CREATE UNIQUE INDEX "maintenance_teams_code_key" ON "maintenance_teams"("code");
+CREATE INDEX "maintenance_teams_service_zone_id_is_active_idx" ON "maintenance_teams"("service_zone_id","is_active");
+CREATE INDEX "assignments_report_id_status_idx" ON "assignments"("report_id","status");
+CREATE INDEX "assignments_team_id_status_idx" ON "assignments"("team_id","status");
+CREATE UNIQUE INDEX "assignments_one_active_per_report_idx" ON "assignments"("report_id") WHERE "status" IN ('ASSIGNED','ACCEPTED','IN_PROGRESS');
+ALTER TABLE "assignments" ADD CONSTRAINT "assignments_team_id_fkey" FOREIGN KEY ("team_id") REFERENCES "maintenance_teams"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

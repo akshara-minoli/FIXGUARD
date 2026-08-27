@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReportCategory {
+  POTHOLE
+  STREETLIGHT
+  WATER_LEAK
+  GARBAGE
+  DRAINAGE
+  TRAFFIC_SIGNAL
+  FALLEN_TREE
+  ROAD_DAMAGE
+  OTHER
+}
+
+enum ReportStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum ReportPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Report {
+  id          String         @id @default(uuid()) @db.Uuid
+  citizenId   String         @map("citizen_id") @db.Uuid
+  title       String         @db.VarChar(160)
+  description String         @db.Text
+  category    ReportCategory
+  latitude    Decimal?       @db.Decimal(9, 6)
+  longitude   Decimal?       @db.Decimal(9, 6)
+  address     String         @db.VarChar(255)
+  districtId  Int?           @map("district_id")
+  areaId      Int?           @map("area_id")
+  serviceZoneId Int?         @map("service_zone_id")
+  imageUrl    String?        @map("image_url") @db.VarChar(2048)
+  adminNote   String?        @map("admin_note") @db.Text
+  priority    ReportPriority @default(MEDIUM)
+  status      ReportStatus   @default(SUBMITTED)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([citizenId, createdAt])
+  @@index([status, category])
+  @@index([districtId, areaId])
+  @@map("reports")
+}
