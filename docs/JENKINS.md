@@ -27,6 +27,9 @@ The existing Docker-based Jenkins installation is configured for a TLS-enabled D
 - `jenkins-docker-certs:/certs/client` for client TLS certificates;
 - `jenkins-data:/var/jenkins_home` so bind-mounted workspaces are visible to the sidecar engine.
 
+> [!NOTE]
+> While Jenkins communicates with the Docker daemon via TCP TLS on port 2376, mounting `/var/run/docker.sock` in containerized pipeline steps (e.g., Trivy scans) is fully compatible. The Docker daemon inside the `jenkins-docker` container resolves `/var/run/docker.sock` internally where the socket genuinely exists, allowing Trivy to query the local image cache successfully.
+
 Granting Jenkins access to a Docker engine is security-sensitive: a pipeline that can control the engine is effectively highly privileged. Limit job configuration and repository write access to trusted users, protect credentials, and never run untrusted pull-request code with registry credentials.
 
 ## GHCR credentials

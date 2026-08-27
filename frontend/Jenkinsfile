@@ -97,6 +97,8 @@ pipeline {
         anyOf {
           branch 'main'
           expression { env.GIT_BRANCH == 'origin/main' }
+          expression { env.GIT_BRANCH == 'main' }
+          expression { env.GIT_BRANCH == 'refs/heads/main' }
         }
       }
       steps {
