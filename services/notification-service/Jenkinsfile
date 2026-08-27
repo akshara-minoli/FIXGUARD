@@ -18,10 +18,26 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
         script {
+          def scmInfo = checkout scm
           env.GIT_SHA = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
           env.IMAGE_REF = "${REGISTRY}/${GHCR_NAMESPACE}/${IMAGE_NAME}:${GIT_SHA}"
+          
+          def rawBranch = scmInfo?.GIT_BRANCH ?: env.GIT_BRANCH
+          if (!rawBranch) {
+            try {
+              rawBranch = sh(script: 'git name-rev --name-only HEAD', returnStdout: true).trim()
+            } catch (Exception e) {
+              rawBranch = 'unknown'
+            }
+          }
+          if (rawBranch) {
+            rawBranch = rawBranch.replace('refs/heads/', '')
+                                 .replace('refs/remotes/', '')
+                                 .replace('origin/', '')
+          }
+          env.GIT_CURRENT_BRANCH = rawBranch ?: 'unknown'
+          echo "Resolved Git branch: ${env.GIT_CURRENT_BRANCH}"
         }
       }
     }
@@ -78,12 +94,7 @@ pipeline {
 
     stage('Push GHCR') {
       when {
-        anyOf {
-          branch 'main'
-          expression { env.GIT_BRANCH == 'origin/main' }
-          expression { env.GIT_BRANCH == 'main' }
-          expression { env.GIT_BRANCH == 'refs/heads/main' }
-        }
+        expression { env.GIT_CURRENT_BRANCH == 'main' }
       }
       steps {
         withCredentials([usernamePassword(credentialsId: 'ghcr-credentials', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
