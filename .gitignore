@@ -8,3 +8,10 @@ coverage/
 *.log
 .idea/
 .vscode/
+
+# Local Kubernetes secrets and generated credential manifests
+infrastructure/kubernetes/secrets/*.local.yaml
+infrastructure/kubernetes/secrets/*-secret.yaml
+infrastructure/kubernetes/secrets/fixguard-secrets.yaml
+infrastructure/kubernetes/secrets/ghcr-pull-secret.yaml
+!infrastructure/kubernetes/secrets/fixguard-secrets.example.yaml
