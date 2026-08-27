@@ -31,5 +31,11 @@
   },
   "prisma": {
     "seed": "node prisma/seed.js"
+  },
+  "allowScripts": {
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "prisma": true,
+    "bcrypt": true
   }
 }
