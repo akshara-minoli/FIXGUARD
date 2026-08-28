@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordInput from "../components/PasswordInput.jsx";
+import { safeAuthErrorMessage } from "../authValidation.js";
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -19,7 +20,7 @@ export default function LoginPage() {
       const loggedInUser = await login(form);
       navigate(loggedInUser.role === "ADMIN" ? "/admin/dashboard" : "/citizen/dashboard", { replace: true });
     } catch (requestError) {
-      setError(requestError.status === 401 ? "Invalid email, username, or password." : requestError.message);
+      setError(requestError.status === 401 ? "Invalid email, username, or password." : safeAuthErrorMessage(requestError));
     } finally { setBusy(false); }
   }
 
