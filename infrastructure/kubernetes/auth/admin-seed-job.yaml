@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: seed
-          image: ghcr.io/akshara-minoli/fixguard-auth:08ed08f3f4b4
+          image: ghcr.io/akshara-minoli/fixguard-auth:bd1e327010dd-admin-reset
           imagePullPolicy: IfNotPresent
           command:
             - npm

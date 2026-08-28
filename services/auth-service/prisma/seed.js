@@ -2,9 +2,9 @@ import "dotenv/config";
 
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
+import { seedConfiguredAdmin } from "./admin-seed.js";
 
 const prisma = new PrismaClient();
-const BCRYPT_ROUNDS = 12;
 
 function requiredEnvironmentValue(name) {
   const value = process.env[name]?.trim();
@@ -37,39 +37,8 @@ async function seedAdmin() {
     throw new Error("ADMIN_PASSWORD must not exceed 72 UTF-8 bytes");
   }
 
-  const [userWithUsername, userWithEmail] = await Promise.all([
-    prisma.user.findUnique({ where: { username } }),
-    prisma.user.findUnique({ where: { email } }),
-  ]);
-
-  if (userWithUsername || userWithEmail) {
-    const existingAdmin = userWithUsername ?? userWithEmail;
-    const identityMatches =
-      existingAdmin.username === username &&
-      existingAdmin.email === email &&
-      existingAdmin.role === "ADMIN";
-
-    if (!identityMatches || (userWithUsername && userWithEmail && userWithUsername.id !== userWithEmail.id)) {
-      throw new Error("Configured admin identity conflicts with an existing user; review it manually");
-    }
-
-    console.log("Development admin already exists; no changes made");
-    return;
-  }
-
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-
-  await prisma.user.create({
-    data: {
-      username,
-      name: "FixGuard Administrator",
-      email,
-      passwordHash,
-      role: "ADMIN",
-    },
-  });
-
-  console.log("Development admin created successfully");
+  const result = await seedConfiguredAdmin({ prisma, username, email, password, hashPassword: bcrypt.hash });
+  console.log(`Development admin ${result} successfully`);
 }
 
 try {
