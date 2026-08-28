@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext.jsx";
+import PasswordInput from "../components/PasswordInput.jsx";
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -25,7 +26,7 @@ export default function LoginPage() {
   return <AuthPanel title="Welcome back" subtitle="Sign in to protect and improve your city.">
     <form onSubmit={submit} className="form-stack">
       <label>Email or username<input required autoComplete="username" value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} /></label>
-      <label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+      <PasswordInput label="Password" required autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
     </form>

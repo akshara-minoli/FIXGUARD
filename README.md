@@ -104,6 +104,8 @@ See [Jenkins setup and operations](docs/JENKINS.md) for job paths, Docker access
 
 Backend JWT/RBAC enforcement is authoritative. Internal endpoints use a separate service key. Inputs are validated with Zod, Express services use Helmet and bounded JSON bodies, and application errors avoid exposing infrastructure details.
 
-## Future DevOps work
+## Kubernetes and future DevOps work
 
-Kubernetes deployment, monitoring, centralized logging, and a transactional event outbox remain future phases. Jenkins intentionally stops after publishing scanned, versioned images to GHCR.
+Phase 9 deploys the complete application to local Kubernetes with PostgreSQL, RabbitMQ, service-owned migrations and seeds, all six backend services, the frontend, and ingress-nginx routing at `http://fixguard.local`. See [the Kubernetes deployment guide](infrastructure/kubernetes/README.md).
+
+Monitoring, centralized logging, and a transactional event outbox remain future work. Jenkins intentionally stops after publishing scanned, versioned images to GHCR.
