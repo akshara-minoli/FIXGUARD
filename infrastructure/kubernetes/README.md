@@ -6,7 +6,7 @@ This directory contains the Kubernetes configuration for the `fixguard` namespac
 - non-sensitive application configuration;
 - a safe Secret template and secret-handling guidance.
 
-The PostgreSQL layer is defined under `postgres/`, but no resources have been applied. RabbitMQ, migrations, seeds, application workloads, and ingress will be added only in approved later steps.
+PostgreSQL and RabbitMQ are defined under `postgres/` and `rabbitmq/`. Explicit service-owned Prisma migration Jobs are defined under `migrations/`. Application workloads, seeds, and ingress will be added only in approved later steps.
 
 ## Client-side validation
 

@@ -6,6 +6,8 @@ For local deployment, copy the example to `fixguard-secrets.local.yaml`, replace
 
 The six raw database-password keys initialize PostgreSQL roles. Their corresponding `*_DATABASE_URL` values must contain the same passwords in URL-encoded form when reserved URL characters are used.
 
+RabbitMQ follows the same pattern: raw `RABBITMQ_USERNAME` and `RABBITMQ_PASSWORD` initialize the broker, while `RABBITMQ_URL` contains URL-encoded credential values for application clients.
+
 GHCR access must be created directly in the cluster and must not be added to this repository:
 
 ```powershell
