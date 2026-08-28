@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: ghcr.io/akshara-minoli/fixguard-frontend:49f99c750333-phase9
+          image: ghcr.io/akshara-minoli/fixguard-frontend:da04fba06257-password-toggle
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
