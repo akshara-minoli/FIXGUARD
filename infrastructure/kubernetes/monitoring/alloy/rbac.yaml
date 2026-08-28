@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/component: log-collector
+    app.kubernetes.io/part-of: fixguard-monitoring
+---
+# ClusterRole — least-privilege permissions for Grafana Alloy.
+#
+# Why each rule is needed:
+#
+#   pods (get/list/watch)
+#     discovery.kubernetes "pods" must enumerate pods across all namespaces
+#     so it can discover log targets and extract pod metadata (name, uid,
+#     namespace, labels) for building the log file path and Loki stream labels.
+#
+#   namespaces (get/list/watch)
+#     Required by discovery.kubernetes internally to resolve namespace-scoped
+#     metadata and to populate __meta_kubernetes_namespace labels.
+#
+#   nodes (get/list/watch)
+#     Required by discovery.kubernetes so Alloy can filter targets to only
+#     pods running on the same node (via spec.nodeName), ensuring the DaemonSet
+#     does not duplicate streams handled by Alloy instances on other nodes.
+#
+#   pods/log (get)
+#     Required by loki.source.kubernetes to open read-only container log streams.
+#
+# Permissions NOT granted:
+#   - secrets: Alloy never needs to read application secrets.
+#   - configmaps, services, endpoints: Not used by the log collection pipeline.
+#   - write verbs (create/update/delete/patch): Alloy is read-only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/component: log-collector
+    app.kubernetes.io/part-of: fixguard-monitoring
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - namespaces
+      - nodes
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - pods/log
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/component: log-collector
+    app.kubernetes.io/part-of: fixguard-monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy
+subjects:
+  - kind: ServiceAccount
+    name: alloy
+    namespace: monitoring

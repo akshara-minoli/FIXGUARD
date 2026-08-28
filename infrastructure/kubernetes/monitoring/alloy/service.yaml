@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/component: log-collector
+    app.kubernetes.io/part-of: fixguard-monitoring
+spec:
+  # ClusterIP service exposing the Alloy HTTP UI for debugging.
+  # Not used by the logging pipeline itself (Alloy pushes to Loki, not the reverse).
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: alloy
+  ports:
+    - name: http
+      port: 12345
+      targetPort: http
+      protocol: TCP

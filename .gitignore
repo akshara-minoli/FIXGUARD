@@ -14,4 +14,5 @@ infrastructure/kubernetes/secrets/*.local.yaml
 infrastructure/kubernetes/secrets/*-secret.yaml
 infrastructure/kubernetes/secrets/fixguard-secrets.yaml
 infrastructure/kubernetes/secrets/ghcr-pull-secret.yaml
+infrastructure/kubernetes/monitoring/grafana/grafana-secrets.yaml
 !infrastructure/kubernetes/secrets/fixguard-secrets.example.yaml

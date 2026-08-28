@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: log-aggregation
+    app.kubernetes.io/part-of: fixguard-monitoring
+spec:
+  # ClusterIP only — Loki is never exposed externally.
+  # Access via: kubectl -n monitoring port-forward service/loki 3100:3100
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: 9096
+      targetPort: grpc
+      protocol: TCP

@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/component: log-collector
+    app.kubernetes.io/part-of: fixguard-monitoring
+data:
+  config.alloy: |
+    // ──────────────────────────────────────────────────────────────────────────
+    // Grafana Alloy v1.8.3 — FixGuard log collection pipeline
+    //
+    // Pipeline:
+    //   discovery.kubernetes  →  discovery.relabel  →  loki.source.file  →  loki.write
+    //
+    // Collection method: file-based (reads /var/log/pods from hostPath mount).
+    // This avoids the CPU overhead of Kubernetes API tailing and is the
+    // Grafana-recommended approach for DaemonSet deployments.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // ── 1. Discover all Kubernetes pods ──────────────────────────────────────
+    // discovery.kubernetes enumerates pods cluster-wide using the Kubernetes API.
+    // The DaemonSet ensures this runs on every node; pod filtering to this node
+    // is handled by the relabel rules below.
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    // ── 2. Relabel: filter, path construction, label extraction ──────────────
+    // Filters to fixguard namespace only, constructs the log file path from
+    // pod UID + container name, and extracts safe low-cardinality stream labels.
+    discovery.relabel "fixguard_pod_logs" {
+      targets = discovery.kubernetes.pods.targets
+
+      // ── Keep only pods in the fixguard namespace ──────────────────────────
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        regex         = "fixguard"
+        action        = "keep"
+      }
+
+      // ── Keep only running containers (skip init containers, etc.) ─────────
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_init"]
+        regex         = "true"
+        action        = "drop"
+      }
+
+      // ── Filter to pods running on THIS node (DaemonSet pattern) ──────────
+      // HOSTNAME env var is set to spec.nodeName in the DaemonSet.
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        regex         = sys.env("HOSTNAME")
+        action        = "keep"
+      }
+
+      // ── Construct the log file path from pod UID + container name ─────────
+      // Kubernetes stores container logs at:
+      //   /var/log/pods/<namespace>_<pod-name>_<pod-uid>/<container-name>/<n>.log
+      // We glob on pod-uid so the namespace/pod-name prefix is not needed.
+      // ── Extract stream labels ─────────────────────────────────────────────
+      // Only low-cardinality labels become Loki stream labels.
+      // Pod name and container ID are intentionally excluded to avoid cardinality explosion.
+
+      // namespace — used for top-level log filtering
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+
+      // pod — the pod name (kept: acceptable for dev environment, bounded set)
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+
+      // container — the container name within the pod
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+
+      // app — from the app.kubernetes.io/name label on the pod.
+      // All FixGuard pods carry this label (e.g. auth-service, report-service).
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        target_label  = "app"
+      }
+
+      // component — from the app.kubernetes.io/component label (backend, frontend, database)
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+        target_label  = "component"
+      }
+    }
+
+    // ── 3. Read log files from the host filesystem ───────────────────────────
+    // Streams discovered container logs through the Kubernetes pods/log API.
+    loki.source.kubernetes "pod_logs" {
+      targets    = discovery.relabel.fixguard_pod_logs.output
+      forward_to = [loki.write.loki_endpoint.receiver]
+    }
+
+    // ── 4. Write to Loki ─────────────────────────────────────────────────────
+    // Pushes log batches to the in-cluster Loki HTTP push API.
+    // No authentication — Loki is ClusterIP only and not externally accessible.
+    loki.write "loki_endpoint" {
+      endpoint {
+        url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }

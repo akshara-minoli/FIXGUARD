@@ -57,6 +57,9 @@ spec:
             - name: management
               containerPort: 15672
               protocol: TCP
+            - name: prometheus
+              containerPort: 15692
+              protocol: TCP
           readinessProbe:
             exec:
               command:
