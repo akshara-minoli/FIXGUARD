@@ -3,12 +3,14 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ARG VITE_AUTH_API_URL=http://localhost:4001
-ARG VITE_REPORT_API_URL=http://localhost:4002
-ARG VITE_LOCATION_API_URL=http://localhost:4003
-ARG VITE_ASSIGNMENT_API_URL=http://localhost:4004
-ARG VITE_NOTIFICATION_API_URL=http://localhost:4005
-ARG VITE_ANALYTICS_API_URL=http://localhost:4006
+# Production uses same-origin Ingress routes. Local development can override
+# these through frontend/.env or explicit build arguments.
+ARG VITE_AUTH_API_URL=
+ARG VITE_REPORT_API_URL=
+ARG VITE_LOCATION_API_URL=
+ARG VITE_ASSIGNMENT_API_URL=
+ARG VITE_NOTIFICATION_API_URL=
+ARG VITE_ANALYTICS_API_URL=
 ENV VITE_AUTH_API_URL=$VITE_AUTH_API_URL \
     VITE_REPORT_API_URL=$VITE_REPORT_API_URL \
     VITE_LOCATION_API_URL=$VITE_LOCATION_API_URL \

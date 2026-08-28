@@ -1,9 +1,10 @@
-const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL ?? "http://localhost:4001";
-const REPORT_API_URL = import.meta.env.VITE_REPORT_API_URL ?? "http://localhost:4002";
-const LOCATION_API_URL = import.meta.env.VITE_LOCATION_API_URL ?? "http://localhost:4003";
-const ASSIGNMENT_API_URL = import.meta.env.VITE_ASSIGNMENT_API_URL ?? "http://localhost:4004";
-const NOTIFICATION_API_URL = import.meta.env.VITE_NOTIFICATION_API_URL ?? "http://localhost:4005";
-const ANALYTICS_API_URL = import.meta.env.VITE_ANALYTICS_API_URL ?? "http://localhost:4006";
+const defaultApiUrl = (port) => import.meta.env.DEV ? `http://localhost:${port}` : "";
+const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL ?? defaultApiUrl(4001);
+const REPORT_API_URL = import.meta.env.VITE_REPORT_API_URL ?? defaultApiUrl(4002);
+const LOCATION_API_URL = import.meta.env.VITE_LOCATION_API_URL ?? defaultApiUrl(4003);
+const ASSIGNMENT_API_URL = import.meta.env.VITE_ASSIGNMENT_API_URL ?? defaultApiUrl(4004);
+const NOTIFICATION_API_URL = import.meta.env.VITE_NOTIFICATION_API_URL ?? defaultApiUrl(4005);
+const ANALYTICS_API_URL = import.meta.env.VITE_ANALYTICS_API_URL ?? defaultApiUrl(4006);
 
 export async function apiRequest(baseUrl, path, options = {}) {
   const token = localStorage.getItem("fixguard_token");
