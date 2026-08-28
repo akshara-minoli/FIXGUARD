@@ -1,0 +1,105 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fixguard-ingress
+  namespace: fixguard
+  labels:
+    app.kubernetes.io/name: fixguard-ingress
+    app.kubernetes.io/part-of: fixguard
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: fixguard.local
+      http:
+        paths:
+          - path: /api/admin/analytics
+            pathType: Prefix
+            backend:
+              service:
+                name: analytics-service
+                port:
+                  number: 4006
+          - path: /api/admin/assignments
+            pathType: Prefix
+            backend:
+              service:
+                name: assignment-service
+                port:
+                  number: 4004
+          - path: /api/admin/locations
+            pathType: Prefix
+            backend:
+              service:
+                name: location-service
+                port:
+                  number: 4003
+          - path: /api/admin/reports
+            pathType: Prefix
+            backend:
+              service:
+                name: report-service
+                port:
+                  number: 4002
+          - path: /api/admin/teams
+            pathType: Prefix
+            backend:
+              service:
+                name: assignment-service
+                port:
+                  number: 4004
+          - path: /api/admin/users
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 4001
+          - path: /api/assignments
+            pathType: Prefix
+            backend:
+              service:
+                name: assignment-service
+                port:
+                  number: 4004
+          - path: /api/notifications
+            pathType: Prefix
+            backend:
+              service:
+                name: notification-service
+                port:
+                  number: 4005
+          - path: /api/locations
+            pathType: Prefix
+            backend:
+              service:
+                name: location-service
+                port:
+                  number: 4003
+          - path: /api/reports
+            pathType: Prefix
+            backend:
+              service:
+                name: report-service
+                port:
+                  number: 4002
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 4001
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 4001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
