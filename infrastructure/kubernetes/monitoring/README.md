@@ -1,4 +1,4 @@
-# FixGuard Monitoring System (Phase 10.1–10.2)
+# FixGuard Monitoring System (Phases 10.1-10.5)
 
 This directory contains the Kubernetes manifests to deploy a standalone Prometheus + Grafana
 monitoring stack in the local environment, collecting core cluster, node, RabbitMQ, and
@@ -20,9 +20,12 @@ flowchart TD
         PG[PostgreSQL Exporter] -- Port 9187 /metrics --> P
     end
 
-    P[(Prometheus :9090)] -- Datasource --> G[(Grafana :3000)]
+    P[(Prometheus :9090)] -- Alert rules --> AM[Alertmanager :9093]
+    AM -- Local UI receiver --> A[Alert lifecycle / silences]
+    P -- Datasource --> G[(Grafana :3000)]
     P -- port-forward :9090 --> Host[Developer Browser]
     G -- port-forward :3000 --> Host
+    AM -- port-forward :9093 --> Host
 ```
 
 ---
@@ -194,9 +197,64 @@ curl http://localhost:3100/loki/api/v1/labels
 
 ---
 
+## Prometheus Alerting (Phase 10.4)
+
+Alertmanager `v0.33.1` is an internal `ClusterIP` service. Prometheus evaluates
+rules from `prometheus/rules/alerts.yaml` and sends firing alerts to
+`alertmanager.monitoring.svc.cluster.local:9093`. The `local-ui` receiver has no
+external integration or credentials; it provides safe local lifecycle, grouping,
+and silence verification.
+
+```bash
+kubectl apply -f infrastructure/kubernetes/monitoring/alertmanager/
+kubectl apply -f infrastructure/kubernetes/monitoring/prometheus/rules/
+kubectl apply -f infrastructure/kubernetes/monitoring/prometheus/
+kubectl -n monitoring port-forward service/alertmanager 9093:9093
+```
+
+Open <http://localhost:9093>. Prometheus rules and their `inactive`, `pending`, or
+`firing` states are visible at <http://localhost:9090/rules> and
+<http://localhost:9090/alerts>. To silence an alert, use **Silences -> New
+silence**, add narrow label matchers such as `alertname` and `namespace`, set a
+short duration and comment, then create the silence.
+
+| Alert | Severity | Purpose |
+|---|---|---|
+| `FixGuardServiceDown` | critical | Desired deployment replicas are unavailable |
+| `FixGuardPodNotReady` | warning | Running or pending pod remains unready |
+| `FixGuardContainerRestarts` | warning | Two or more restarts in ten minutes |
+| `FixGuardHighCPU` | warning | Pod exceeds 0.8 cores for five minutes |
+| `FixGuardHighMemory` | warning | Pod exceeds 85% of its memory limit |
+| `RabbitMQDown` | critical | RabbitMQ target is unavailable |
+| `RabbitMQQueueBacklog` | warning | Non-DLQ queue holds over 100 messages |
+| `RabbitMQDeadLetterQueueNotEmpty` | warning | A DLQ remains non-empty |
+| `PostgreSQLDown` | critical | Exporter cannot connect to PostgreSQL |
+| `MonitoringTargetDown` | critical | A critical internal exporter is unavailable |
+
+Severity convention: `info` is for controlled tests or informational conditions,
+`warning` is actionable degradation, and `critical` is service or dependency
+unavailability requiring prompt action.
+
+Troubleshooting:
+
+```bash
+kubectl -n monitoring get pods,svc
+kubectl -n monitoring logs deployment/alertmanager --tail=100
+kubectl -n monitoring logs deployment/prometheus --tail=100
+kubectl -n monitoring exec deployment/prometheus -- promtool check config /etc/prometheus/prometheus.yml
+kubectl -n monitoring get --raw /api/v1/namespaces/monitoring/services/http:prometheus:9090/proxy/api/v1/rules
+kubectl -n monitoring get --raw /api/v1/namespaces/monitoring/services/http:alertmanager:9093/proxy/api/v2/status
+```
+
+If rules are absent, verify the `prometheus-rules` ConfigMap mount and restart
+only the Prometheus Deployment. If alerts do not arrive, inspect Prometheus
+runtime information and both service endpoints.
+
 ## Intentionally Deferred Features
 
 The following components are deferred to subsequent phases:
-- **Phase 10.4**: Alertmanager rules & notifications routing.
-- **Phase 10.5**: SLIs, SLOs, and SLA definitions.
 - **Phase 10.6**: Chaos engineering and cluster failure simulations.
+
+Phase 10.5 SLI/SLO targets, measurements, error budgets, limitations, and PromQL
+examples are documented in [`slo/README.md`](slo/README.md). Grafana provisions
+the **FixGuard SRE / SLO Overview** dashboard alongside the existing dashboards.

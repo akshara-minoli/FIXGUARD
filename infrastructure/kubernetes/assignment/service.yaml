@@ -3,6 +3,10 @@ kind: Service
 metadata:
   name: assignment-service
   namespace: fixguard
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "4004"
   labels:
     app.kubernetes.io/name: assignment-service
     app.kubernetes.io/part-of: fixguard

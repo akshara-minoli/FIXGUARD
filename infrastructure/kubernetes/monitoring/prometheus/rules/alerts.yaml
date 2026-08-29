@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+data:
+  fixguard-slo.yml: |
+    groups:
+      - name: fixguard.sli-recording
+        interval: 15s
+        rules:
+          - record: fixguard:sli:availability:ratio
+            expr: |
+              count(kube_deployment_status_replicas_available{namespace="fixguard", deployment=~"auth-service|report-service|location-service|assignment-service|notification-service|analytics-service|frontend"} > 0)
+              /
+              count(kube_deployment_spec_replicas{namespace="fixguard", deployment=~"auth-service|report-service|location-service|assignment-service|notification-service|analytics-service|frontend"})
+          - record: fixguard:slo:availability:target
+            expr: vector(0.999)
+          - record: fixguard:error_budget:availability:remaining_ratio
+            expr: clamp_max(clamp_min(1 - ((1 - fixguard:sli:availability:ratio) / (1 - fixguard:slo:availability:target)), 0), 1)
+          - record: fixguard:sli:http_request_rate:per_second
+            expr: sum(rate(fixguard_http_requests_total[5m]))
+          - record: fixguard:sli:http_5xx_rate:per_second
+            expr: sum(rate(fixguard_http_requests_total{status_code=~"5.."}[5m]))
+          - record: fixguard:sli:http_success:ratio
+            expr: |
+              sum(rate(fixguard_http_requests_total{status_code!~"5.."}[5m]))
+              /
+              sum(rate(fixguard_http_requests_total[5m]))
+          - record: fixguard:slo:http_success:target
+            expr: vector(0.995)
+          - record: fixguard:error_budget:http_success:remaining_ratio
+            expr: clamp_max(clamp_min(1 - ((1 - fixguard:sli:http_success:ratio) / (1 - fixguard:slo:http_success:target)), 0), 1)
+          - record: fixguard:sli:http_latency_p50:seconds
+            expr: histogram_quantile(0.50, sum by (le) (rate(fixguard_http_request_duration_seconds_bucket[5m])))
+          - record: fixguard:sli:http_latency_p95:seconds
+            expr: histogram_quantile(0.95, sum by (le) (rate(fixguard_http_request_duration_seconds_bucket[5m])))
+          - record: fixguard:sli:http_latency_p99:seconds
+            expr: histogram_quantile(0.99, sum by (le) (rate(fixguard_http_request_duration_seconds_bucket[5m])))
+  fixguard-alerts.yml: |
+    groups:
+      - name: fixguard.workloads
+        rules:
+          - alert: FixGuardServiceDown
+            expr: |
+              (kube_deployment_status_replicas_available{namespace="fixguard"}
+                < kube_deployment_spec_replicas{namespace="fixguard"})
+              and on (namespace, deployment)
+              kube_deployment_spec_replicas{namespace="fixguard"} > 0
+            for: 2m
+            labels:
+              severity: critical
+              namespace: fixguard
+            annotations:
+              summary: "FixGuard deployment {{ $labels.deployment }} is unavailable"
+              description: "Deployment {{ $labels.deployment }} has fewer available replicas than desired for more than 2 minutes."
+
+          - alert: FixGuardPodNotReady
+            expr: |
+              (kube_pod_status_ready{namespace="fixguard", condition="true"} == 0)
+              and on (namespace, pod)
+              (kube_pod_status_phase{namespace="fixguard", phase=~"Pending|Running"} == 1)
+            for: 5m
+            labels:
+              severity: warning
+              namespace: fixguard
+            annotations:
+              summary: "FixGuard pod {{ $labels.pod }} is not ready"
+              description: "Pod {{ $labels.pod }} has remained unready in Pending or Running phase for more than 5 minutes."
+
+          - alert: FixGuardContainerRestarts
+            expr: increase(kube_pod_container_status_restarts_total{namespace="fixguard"}[10m]) >= 2
+            for: 2m
+            labels:
+              severity: warning
+              namespace: fixguard
+            annotations:
+              summary: "Container {{ $labels.container }} is restarting"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} restarted at least twice in 10 minutes."
+
+          # Docker Desktop cAdvisor exposes reliable pod-cgroup series but omits
+          # container labels. 0.8 CPU cores sustained per pod is a practical
+          # local threshold and avoids infrastructure/pause container series.
+          - alert: FixGuardHighCPU
+            expr: |
+              sum by (namespace, pod) (
+                rate(container_cpu_usage_seconds_total{namespace="fixguard", id=~"/kubepods/.+/pod[^/]+"}[5m])
+              ) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              namespace: fixguard
+            annotations:
+              summary: "High CPU usage for FixGuard pod {{ $labels.pod }}"
+              description: "Pod {{ $labels.pod }} has used more than 0.8 CPU cores for 5 minutes."
+
+          - alert: FixGuardHighMemory
+            expr: |
+              (
+                sum by (namespace, pod) (
+                  container_memory_working_set_bytes{namespace="fixguard", id=~"/kubepods/.+/pod[^/]+"}
+                )
+                /
+                sum by (namespace, pod) (
+                  kube_pod_container_resource_limits{namespace="fixguard", resource="memory", unit="byte"} > 0
+                )
+              ) > 0.85
+            for: 5m
+            labels:
+              severity: warning
+              namespace: fixguard
+            annotations:
+              summary: "High memory usage for FixGuard pod {{ $labels.pod }}"
+              description: "Pod {{ $labels.pod }} has exceeded 85% of its configured memory limit for 5 minutes."
+
+      - name: fixguard.dependencies
+        rules:
+          - alert: RabbitMQDown
+            expr: up{job="kubernetes-service-endpoints", kubernetes_namespace="fixguard", kubernetes_service_name="rabbitmq"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              namespace: fixguard
+              service: rabbitmq
+            annotations:
+              summary: "FixGuard RabbitMQ metrics target is down"
+              description: "Prometheus cannot scrape the RabbitMQ target for more than 2 minutes."
+
+          - alert: RabbitMQQueueBacklog
+            expr: rabbitmq_queue_messages{job="rabbitmq-per-object", queue!~".*\\.dlq$"} > 100
+            for: 5m
+            labels:
+              severity: warning
+              namespace: fixguard
+              service: rabbitmq
+            annotations:
+              summary: "RabbitMQ queue {{ $labels.queue }} has a backlog"
+              description: "Queue {{ $labels.queue }} has held more than 100 messages for 5 minutes."
+
+          - alert: RabbitMQDeadLetterQueueNotEmpty
+            expr: rabbitmq_queue_messages{job="rabbitmq-per-object", queue=~".*\\.dlq$"} > 0
+            for: 2m
+            labels:
+              severity: warning
+              namespace: fixguard
+              service: rabbitmq
+            annotations:
+              summary: "RabbitMQ dead-letter queue {{ $labels.queue }} is not empty"
+              description: "Dead-letter queue {{ $labels.queue }} has contained messages for more than 2 minutes."
+
+          - alert: PostgreSQLDown
+            expr: pg_up{job="kubernetes-service-endpoints", kubernetes_service_name="postgres-exporter"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              namespace: fixguard
+              service: postgresql
+            annotations:
+              summary: "FixGuard PostgreSQL is unavailable"
+              description: "The PostgreSQL exporter cannot connect to PostgreSQL for more than 2 minutes."
+
+      - name: monitoring.dependencies
+        rules:
+          - alert: MonitoringTargetDown
+            expr: |
+              up{job="kubernetes-service-endpoints", kubernetes_namespace="monitoring", kubernetes_service_name=~"kube-state-metrics|node-exporter|postgres-exporter"} == 0
+            for: 3m
+            labels:
+              severity: critical
+              namespace: monitoring
+            annotations:
+              summary: "Monitoring target {{ $labels.kubernetes_service_name }} is down"
+              description: "Prometheus cannot scrape {{ $labels.kubernetes_service_name }} at {{ $labels.instance }} for more than 3 minutes."

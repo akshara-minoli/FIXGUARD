@@ -3,6 +3,10 @@ kind: Service
 metadata:
   name: analytics-service
   namespace: fixguard
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "4006"
   labels:
     app.kubernetes.io/name: analytics-service
     app.kubernetes.io/part-of: fixguard

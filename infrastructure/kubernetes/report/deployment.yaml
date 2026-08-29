@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: report-service
-          image: ghcr.io/akshara-minoli/fixguard-report:08ed08f3f4b4
+          image: ghcr.io/akshara-minoli/fixguard-report:phase10.5-local
           imagePullPolicy: IfNotPresent
           command:
             - npm
