@@ -47,30 +47,34 @@ pipeline {
     }
 
     stage('Parallel Component Validation') {
+      environment {
+        PRISMA_SCHEMA_ENGINE_BINARY = '../../.ci/prisma-engines/schema-engine-linux-musl-openssl-3.0.x'
+        PRISMA_QUERY_ENGINE_LIBRARY = '../../.ci/prisma-engines/libquery_engine-linux-musl-openssl-3.0.x.so.node'
+      }
       parallel {
         stage('Auth') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/auth-service') { sh 'npm ci'; sh 'cp -R ../../.ci/prisma-engines/. node_modules/@prisma/engines/'; sh 'npx prisma generate'; sh 'npm test' } }
+          steps { dir('services/auth-service') { sh 'npm ci'; sh 'npx prisma generate'; sh 'npm test' } }
         }
         stage('Report') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/report-service') { sh 'npm ci'; sh 'cp -R ../../.ci/prisma-engines/. node_modules/@prisma/engines/'; sh 'npx prisma generate'; sh 'npm test' } }
+          steps { dir('services/report-service') { sh 'npm ci'; sh 'npx prisma generate'; sh 'npm test' } }
         }
         stage('Location') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/location-service') { sh 'npm ci'; sh 'cp -R ../../.ci/prisma-engines/. node_modules/@prisma/engines/'; sh 'npx prisma generate'; sh 'npm test' } }
+          steps { dir('services/location-service') { sh 'npm ci'; sh 'npx prisma generate'; sh 'npm test' } }
         }
         stage('Assignment') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/assignment-service') { sh 'npm ci'; sh 'cp -R ../../.ci/prisma-engines/. node_modules/@prisma/engines/'; sh 'npx prisma generate'; sh 'npm test' } }
+          steps { dir('services/assignment-service') { sh 'npm ci'; sh 'npx prisma generate'; sh 'npm test' } }
         }
         stage('Notification') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/notification-service') { sh 'npm ci'; sh 'cp -R ../../.ci/prisma-engines/. node_modules/@prisma/engines/'; sh 'npx prisma generate'; sh 'npm test' } }
+          steps { dir('services/notification-service') { sh 'npm ci'; sh 'npx prisma generate'; sh 'npm test' } }
         }
         stage('Analytics') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/analytics-service') { sh 'npm ci'; sh 'cp -R ../../.ci/prisma-engines/. node_modules/@prisma/engines/'; sh 'npx prisma generate'; sh 'npm test' } }
+          steps { dir('services/analytics-service') { sh 'npm ci'; sh 'npx prisma generate'; sh 'npm test' } }
         }
         stage('Frontend') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
