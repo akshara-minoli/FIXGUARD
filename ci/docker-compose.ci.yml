@@ -1,0 +1,5 @@
+volumes:
+  fixguard_postgres_data:
+    name: ${CI_COMPOSE_PROJECT:?CI_COMPOSE_PROJECT is required}_postgres_data
+  fixguard_rabbitmq_data:
+    name: ${CI_COMPOSE_PROJECT:?CI_COMPOSE_PROJECT is required}_rabbitmq_data

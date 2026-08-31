@@ -93,13 +93,53 @@ pipeline {
     stage('Compose Build and Integration Health') {
       when { expression { params.RUN_COMPOSE_VALIDATION } }
       steps {
-        sh 'docker compose -p "fixguard-ci-${BUILD_NUMBER}" build'
-        sh 'docker compose -p "fixguard-ci-${BUILD_NUMBER}" up -d --wait'
-        sh 'docker compose -p "fixguard-ci-${BUILD_NUMBER}" ps'
+        sh '''set +x
+          umask 077
+          ci_random() { od -An -N24 -tx1 /dev/urandom | tr -d ' \n'; }
+          {
+            echo "CI_COMPOSE_PROJECT=fixguard-ci-${BUILD_NUMBER}"
+            echo 'POSTGRES_USER=fixguard_ci'
+            echo "POSTGRES_PASSWORD=$(ci_random)"
+            echo 'POSTGRES_DB=fixguard_auth_ci'
+            echo 'REPORT_DB=fixguard_report_ci'
+            echo 'LOCATION_DB=fixguard_location_ci'
+            echo 'ASSIGNMENT_DB=fixguard_assignment_ci'
+            echo 'NOTIFICATION_DB=fixguard_notification_ci'
+            echo 'ANALYTICS_DB=fixguard_analytics_ci'
+            echo 'RABBITMQ_USER=fixguard_ci'
+            echo "RABBITMQ_PASSWORD=$(ci_random)"
+            echo "JWT_SECRET=$(ci_random)"
+            echo "INTERNAL_SERVICE_KEY=$(ci_random)"
+            echo 'ADMIN_USERNAME=fixguard_ci_admin'
+            echo 'ADMIN_EMAIL=fixguard-ci@example.invalid'
+            echo "ADMIN_PASSWORD=$(ci_random)"
+          } > .ci/compose.env'''
+        sh 'docker compose --env-file .ci/compose.env -f docker-compose.yml -f ci/docker-compose.ci.yml -p "fixguard-ci-${BUILD_NUMBER}" config --quiet'
+        sh 'docker compose --env-file .ci/compose.env -f docker-compose.yml -f ci/docker-compose.ci.yml -p "fixguard-ci-${BUILD_NUMBER}" build'
+        sh 'docker compose --env-file .ci/compose.env -f docker-compose.yml -f ci/docker-compose.ci.yml -p "fixguard-ci-${BUILD_NUMBER}" up -d --wait'
+        sh 'docker compose --env-file .ci/compose.env -f docker-compose.yml -f ci/docker-compose.ci.yml -p "fixguard-ci-${BUILD_NUMBER}" ps'
       }
       post {
+        unsuccessful {
+          sh '''compose_ci() {
+              docker compose --env-file .ci/compose.env -f docker-compose.yml -f ci/docker-compose.ci.yml -p "fixguard-ci-${BUILD_NUMBER}" "$@"
+            }
+            compose_ci ps -a || true
+            compose_ci logs --no-color --tail=200 postgres rabbitmq || true
+            compose_ci logs --no-color --tail=200 report-db-init location-db-init assignment-db-init notification-db-init analytics-db-init || true
+            compose_ci logs --no-color --tail=200 auth-service report-service location-service assignment-service notification-service analytics-service || true
+            postgres_id="$(compose_ci ps -q postgres 2>/dev/null || true)"
+            rabbitmq_id="$(compose_ci ps -q rabbitmq 2>/dev/null || true)"
+            if [ -n "$postgres_id" ]; then
+              docker inspect --format 'postgres status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$postgres_id" || true
+            fi
+            if [ -n "$rabbitmq_id" ]; then
+              docker inspect --format 'rabbitmq status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$rabbitmq_id" || true
+            fi'''
+        }
         always {
-          sh 'docker compose -p "fixguard-ci-${BUILD_NUMBER}" down --remove-orphans || true'
+          sh '''docker compose --env-file .ci/compose.env -f docker-compose.yml -f ci/docker-compose.ci.yml -p "fixguard-ci-${BUILD_NUMBER}" down --volumes --remove-orphans || true
+            rm -f .ci/compose.env'''
         }
       }
     }
@@ -110,7 +150,7 @@ pipeline {
       echo "FixGuard full validation passed for ${env.GIT_SHA}."
     }
     failure {
-      echo 'Full validation failed; inspect the failed parallel branch.'
+      echo 'Full validation failed; inspect the failed stage and its diagnostics.'
     }
     always {
       deleteDir()

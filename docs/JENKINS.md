@@ -66,6 +66,8 @@ Docker build contexts exclude `.env*`, Git metadata, `node_modules`, coverage, l
 
 Backend pipelines acquire the Prisma 6.19.0 Alpine schema and query engines once in a controlled preparation stage with normal checksum verification. They package only those verified files in a local `fixguard-prisma-engines:6.19.0` carrier image. Backend Docker builds copy the engines from that local image before `npm ci`, so Prisma install, generation, and container-start migration commands use explicit local engine paths instead of independently contacting `binaries.prisma.sh`. The carrier image is a CI build input and is never pushed.
 
+Full Build Compose validation creates a mode-`0600` runtime environment file with ephemeral PostgreSQL, RabbitMQ, JWT, internal-service, and admin credentials. The values are never printed or committed. `ci/docker-compose.ci.yml` assigns PostgreSQL and RabbitMQ volumes unique names derived from the Jenkins build project; failure diagnostics are collected before `down --volumes` removes only that build's containers and volumes. Local Compose continues to use its normal fixed development volume names.
+
 ## Validation procedure
 
 1. Run each job independently and confirm checkout, `npm ci`, Prisma generation (backend), tests, Docker build, Trivy, and GHCR push.
