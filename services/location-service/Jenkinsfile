@@ -51,7 +51,32 @@ pipeline {
       }
     }
 
+    stage('Prepare Prisma Engines') {
+      agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
+      steps {
+        dir("${SERVICE_DIR}") {
+          sh 'npm ci --ignore-scripts'
+          retry(3) { sh 'npx prisma generate' }
+          sh '''mkdir -p ../../.ci/prisma-engines
+            cp node_modules/prisma/schema-engine-linux-musl-openssl-3.0.x ../../.ci/prisma-engines/
+            cp node_modules/prisma/libquery_engine-linux-musl-openssl-3.0.x.so.node ../../.ci/prisma-engines/
+            test -x ../../.ci/prisma-engines/schema-engine-linux-musl-openssl-3.0.x
+            test -f ../../.ci/prisma-engines/libquery_engine-linux-musl-openssl-3.0.x.so.node'''
+        }
+      }
+    }
+
+    stage('Package Prisma Engines') {
+      steps {
+        sh 'docker build -f "${WORKSPACE}/ci/prisma-engines.Dockerfile" -t fixguard-prisma-engines:6.19.0 .ci/prisma-engines'
+      }
+    }
+
     stage('Dependencies, Prisma, Tests') {
+      environment {
+        PRISMA_SCHEMA_ENGINE_BINARY = '../../.ci/prisma-engines/schema-engine-linux-musl-openssl-3.0.x'
+        PRISMA_QUERY_ENGINE_LIBRARY = '../../.ci/prisma-engines/libquery_engine-linux-musl-openssl-3.0.x.so.node'
+      }
       agent {
         docker {
           image 'node:22-alpine'
@@ -71,7 +96,8 @@ pipeline {
 
     stage('Docker Build') {
       steps {
-        sh 'docker build --pull -t "${IMAGE_REF}" "${SERVICE_DIR}"'
+        sh 'docker pull node:22-alpine'
+        sh 'docker build -t "${IMAGE_REF}" "${SERVICE_DIR}"'
       }
     }
 
@@ -81,6 +107,8 @@ pipeline {
           test ! -f /app/.env
           test ! -d /app/.git
           test ! -d /app/coverage
+          test -x /opt/prisma-engines/schema-engine-linux-musl-openssl-3.0.x
+          test -f /opt/prisma-engines/libquery_engine-linux-musl-openssl-3.0.x.so.node
         ' '''
       }
     }

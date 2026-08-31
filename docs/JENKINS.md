@@ -64,6 +64,8 @@ Trivy reports `HIGH` and `CRITICAL` findings. Unfixed `CRITICAL` findings return
 
 Docker build contexts exclude `.env*`, Git metadata, `node_modules`, coverage, logs, and IDE data. Prisma schemas remain included. A post-build check confirms expected secret-bearing paths are absent from the image.
 
+Backend pipelines acquire the Prisma 6.19.0 Alpine schema and query engines once in a controlled preparation stage with normal checksum verification. They package only those verified files in a local `fixguard-prisma-engines:6.19.0` carrier image. Backend Docker builds copy the engines from that local image before `npm ci`, so Prisma install, generation, and container-start migration commands use explicit local engine paths instead of independently contacting `binaries.prisma.sh`. The carrier image is a CI build input and is never pushed.
+
 ## Validation procedure
 
 1. Run each job independently and confirm checkout, `npm ci`, Prisma generation (backend), tests, Docker build, Trivy, and GHCR push.
