@@ -34,27 +34,27 @@ pipeline {
       parallel {
         stage('Auth') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/auth-service') { sh 'npm ci && npx prisma generate && npm test' } }
+          steps { dir('services/auth-service') { sh 'npm ci'; retry(3) { sh 'npx prisma generate' }; sh 'npm test' } }
         }
         stage('Report') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/report-service') { sh 'npm ci && npx prisma generate && npm test' } }
+          steps { dir('services/report-service') { sh 'npm ci'; retry(3) { sh 'npx prisma generate' }; sh 'npm test' } }
         }
         stage('Location') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/location-service') { sh 'npm ci && npx prisma generate && npm test' } }
+          steps { dir('services/location-service') { sh 'npm ci'; retry(3) { sh 'npx prisma generate' }; sh 'npm test' } }
         }
         stage('Assignment') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/assignment-service') { sh 'npm ci && npx prisma generate && npm test' } }
+          steps { dir('services/assignment-service') { sh 'npm ci'; retry(3) { sh 'npx prisma generate' }; sh 'npm test' } }
         }
         stage('Notification') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/notification-service') { sh 'npm ci && npx prisma generate && npm test' } }
+          steps { dir('services/notification-service') { sh 'npm ci'; retry(3) { sh 'npx prisma generate' }; sh 'npm test' } }
         }
         stage('Analytics') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
-          steps { dir('services/analytics-service') { sh 'npm ci && npx prisma generate && npm test' } }
+          steps { dir('services/analytics-service') { sh 'npm ci'; retry(3) { sh 'npx prisma generate' }; sh 'npm test' } }
         }
         stage('Frontend') {
           agent { docker { image 'node:22-alpine'; reuseNode true; args '-u root:root' } }
