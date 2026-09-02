@@ -1,6 +1,10 @@
 # FixGuard
 
-FixGuard is a portfolio-ready civic infrastructure reporting platform. Citizens report local issues and follow resolution progress; municipal administrators verify reports, coordinate maintenance teams, manage service areas, and inspect operational analytics.
+FixGuard is a portfolio-ready civic infrastructure reporting platform. Citizens report local issues and follow resolution progress; municipal administrators 
+verify reports, coordinate maintenance teams, manage service areas, and inspect operational analytics.
+
+Cloud-Native Microservices & SRE Platform
+Kubernetes • Docker • Jenkins • Prometheus • Grafana • Loki • RabbitMQ
 
 ## Architecture
 
